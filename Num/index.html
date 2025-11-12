@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chaldean Numerology Calculator</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Apply Inter font and smooth transitions */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            transition: all 0.3s ease;
+        }
+        .card {
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        .result-box {
+            background-color: #e0f2f7; /* Light cyan background for results */
+            border: 1px solid #bae6fd;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            min-height: 10rem;
+        }
+        .master-number {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-start lg:items-center justify-center p-4">
+
+    <!-- Main Application Card - Adjusted max-width for single column -->
+    <div class="card w-full max-w-lg bg-white rounded-xl p-8 transition-all duration-300">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-indigo-700">Numerology Analyzer</h1>
+            <p class="text-gray-500 mt-2">Calculate your Chaldean Name Number and Vehicle Number.</p>
+        </header>
+
+        <!-- CALCULATION SECTIONS - Stacked layout -->
+        <div class="space-y-8">
+            
+            <!-- CHALDEAN NAME NUMBER CALCULATOR -->
+            <section class="bg-indigo-50 p-6 rounded-lg shadow-inner">
+                <h2 class="text-2xl font-bold text-indigo-700 mb-4 border-b pb-2 border-indigo-200">1. Chaldean Name Number</h2>
+                
+                <!-- Name Input -->
+                <div class="mb-6">
+                    <label for="fullName" class="block text-sm font-medium text-gray-700 mb-2">Enter Full Name</label>
+                    <input type="text" id="fullName" placeholder="Your full name (e.g., Jane M. Doe)"
+                           class="w-full px-4 py-3 border border-indigo-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                           oninput="calculateChaldean()">
+                </div>
+
+                <!-- Chaldean Result Output -->
+                <div class="result-box mt-6">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2 border-cyan-300">Name Number Result</h3>
+                    <div id="chaldeanResultOutput" class="text-center transition-opacity duration-500 opacity-0">
+                        <!-- Calculation details will be inserted here -->
+                    </div>
+                    <div id="chaldeanInitialPrompt" class="text-center text-gray-500">
+                        Type your name above to calculate your destiny number.
+                    </div>
+                </div>
+            </section>
+            
+            <!-- VEHICLE NUMBER CALCULATOR -->
+            <section class="bg-emerald-50 p-6 rounded-lg shadow-inner">
+                <h2 class="text-2xl font-bold text-emerald-700 mb-4 border-b pb-2 border-emerald-200">2. Vehicle Number Numerology</h2>
+                
+                <!-- Vehicle Input -->
+                <div class="mb-6">
+                    <label for="vehicleNumber" class="block text-sm font-medium text-gray-700 mb-2">Enter Vehicle Plate Number</label>
+                    <input type="text" id="vehicleNumber" placeholder="e.g., TN38 DS 1234"
+                           class="w-full px-4 py-3 border border-emerald-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 text-lg uppercase"
+                           oninput="calculateVehicleNumber()">
+                </div>
+                
+                <!-- Vehicle Result Output -->
+                <div class="result-box mt-6">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2 border-cyan-300">Vehicle Number Result</h3>
+                    <div id="vehicleNumberOutput" class="text-center transition-opacity duration-500 opacity-0">
+                        <!-- Vehicle Number details will be inserted here -->
+                    </div>
+                    <div id="vehicleNumberInitialPrompt" class="text-center text-gray-500">
+                        Type your license plate above to calculate the number value.
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Numerology Mapping Guide (Responsive) -->
+        <div class="mt-10">
+            <h3 class="text-lg font-semibold text-gray-700 mb-3">Chaldean System Mapping (Name)</h3>
+            <div class="grid grid-cols-4 sm:grid-cols-8 gap-2 text-sm text-center">
+                <!-- The numbers 1-8 are listed, 9 is excluded as it's a sacred/unassigned number -->
+                <div class="p-2 bg-gray-100 rounded-md font-bold">1: A, I, J, Q, Y</div>
+                <div class="p-2 bg-gray-100 rounded-md font-bold">2: B, K, R</div>
+                <div class="p-2 bg-gray-100 rounded-md font-bold">3: C, G, L, S</div>
+                <div class="p-2 bg-gray-100 rounded-md font-bold">4: D, M, T</div>
+                <div class="p-2 bg-gray-100 rounded-md font-bold">5: E, H, N, X</div>
+                <div class="p-2 bg-gray-100 rounded-md font-bold">6: U, V, W</div>
+                <div class="p-2 bg-gray-100 rounded-md font-bold">7: O, Z</div>
+                <div class="p-2 bg-gray-100 rounded-md font-bold">8: F, P</div>
+            </div>
+            <p class="text-xs text-gray-500 mt-2 italic text-center">Note: Master numbers 11 and 22 are not reduced further in either calculation.</p>
+        </div>
+    </div>
+
+    <script>
+        // --- CHALDEAN MAPPING (Used for Name Number) ---
+        const CHALDEAN_MAP = {
+            'A': 1, 'I': 1, 'J': 1, 'Q': 1, 'Y': 1,
+            'B': 2, 'K': 2, 'R': 2,
+            'C': 3, 'G': 3, 'L': 3, 'S': 3,
+            'D': 4, 'M': 4, 'T': 4,
+            'E': 5, 'H': 5, 'N': 5, 'X': 5,
+            'U': 6, 'V': 6, 'W': 6,
+            'O': 7, 'Z': 7,
+            'F': 8, 'P': 8
+        };
+
+        const fullNameInput = document.getElementById('fullName');
+        const chaldeanResultOutput = document.getElementById('chaldeanResultOutput');
+        const chaldeanInitialPrompt = document.getElementById('chaldeanInitialPrompt');
+        
+        const vehicleNumberInput = document.getElementById('vehicleNumber');
+        const vehicleNumberOutput = document.getElementById('vehicleNumberOutput');
+        const vehicleNumberInitialPrompt = document.getElementById('vehicleNumberInitialPrompt');
+
+
+        // --- CORE REDUCTION LOGIC (Used for both Name and Vehicle Number) ---
+        /**
+         * Reduces a number to a single digit or a master number (11, 22).
+         * @param {number} num The number to reduce.
+         * @returns {number} The reduced single digit or master number.
+         */
+        function reduceNumber(num) {
+            let sum = num;
+            
+            // Loop until the sum is a single digit or a master number
+            while (sum > 9 && sum !== 11 && sum !== 22) {
+                let tempSum = 0;
+                // Sum the digits
+                String(sum).split('').forEach(digit => {
+                    tempSum += parseInt(digit, 10);
+                });
+                sum = tempSum;
+            }
+            return sum;
+        }
+
+
+        // --- NAME NUMBER CALCULATION ---
+        function calculateChaldean() {
+            const fullName = fullNameInput.value.trim();
+
+            if (fullName === "") {
+                chaldeanResultOutput.innerHTML = '';
+                chaldeanResultOutput.classList.remove('opacity-100');
+                chaldeanInitialPrompt.classList.remove('hidden');
+                return;
+            }
+            
+            chaldeanInitialPrompt.classList.add('hidden');
+            chaldeanResultOutput.classList.remove('opacity-0');
+            chaldeanResultOutput.classList.add('opacity-100');
+
+            // Only consider alphabetical characters for the Chaldean calculation
+            const cleanName = fullName.toUpperCase().replace(/[^A-Z]/g, '');
+
+            if (cleanName.length === 0) {
+                 chaldeanResultOutput.innerHTML = '<p class="text-red-500 font-semibold">Please enter a valid name (letters only).</p>';
+                 return;
+            }
+
+            let totalSum = 0;
+            let calculationSteps = ''; 
+
+            // Calculate the total sum and the step-by-step breakdown
+            for (let i = 0; i < cleanName.length; i++) {
+                const letter = cleanName[i];
+                const value = CHALDEAN_MAP[letter];
+
+                if (value) {
+                    totalSum += value;
+                    // Format the breakdown string
+                    calculationSteps += `<span class="font-bold">${letter}</span>(${value}) ${i < cleanName.length - 1 ? '+ ' : ''}`;
+                }
+            }
+
+            // Perform the reduction
+            const finalNumber = reduceNumber(totalSum);
+
+            // Generate HTML output
+            const { numberClass, masterTag } = getResultFormatting(finalNumber);
+
+            const outputHTML = `
+                <div class="text-center space-y-4">
+                    <p class="text-sm text-gray-500">Breakdown:</p>
+                    <p class="text-lg text-gray-700 font-mono break-words p-2 bg-white rounded-md">${calculationSteps} = <span class="font-bold">${totalSum}</span></p>
+
+                    ${totalSum !== finalNumber ? `
+                        <p class="text-sm text-gray-500">Reduction (Sum of Digits):</p>
+                        <p class="text-xl font-bold text-indigo-500">${totalSum} <span class="text-gray-400">→</span> ${finalNumber}</p>
+                    ` : ''}
+
+                    <div class="pt-4 border-t mt-4 border-cyan-300">
+                        <p class="text-xl font-semibold text-gray-700">Your Chaldean Name Number:</p>
+                        <div class="flex justify-center items-center mt-2">
+                            <span class="${numberClass}">
+                                ${finalNumber}
+                            </span>
+                            ${masterTag}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            chaldeanResultOutput.innerHTML = outputHTML;
+        }
+        
+        
+        // --- VEHICLE NUMBER CALCULATION ---
+        function calculateVehicleNumber() {
+            const plate = vehicleNumberInput.value.trim().toUpperCase();
+
+            if (plate === "") {
+                vehicleNumberOutput.innerHTML = '';
+                vehicleNumberOutput.classList.remove('opacity-100');
+                vehicleNumberInitialPrompt.classList.remove('hidden');
+                return;
+            }
+            
+            vehicleNumberInitialPrompt.classList.add('hidden');
+            vehicleNumberOutput.classList.remove('opacity-0');
+            vehicleNumberOutput.classList.add('opacity-100');
+
+            let totalSum = 0;
+            // Temporary array to hold [character, value] pairs for display
+            const breakdown = [];
+
+            // Calculate the total sum of all characters (letters use Chaldean, digits use face value)
+            for (let i = 0; i < plate.length; i++) {
+                const char = plate[i];
+                let value = null;
+
+                if (CHALDEAN_MAP.hasOwnProperty(char)) {
+                    // It's a letter (uses Chaldean map)
+                    value = CHALDEAN_MAP[char];
+                    breakdown.push({ char: char, value: value });
+                } else if (!isNaN(parseInt(char, 10)) && char !== ' ') {
+                    // It's a digit (uses face value) and not a space
+                    value = parseInt(char, 10);
+                    breakdown.push({ char: char, value: value });
+                }
+                
+                if (value !== null) {
+                    totalSum += value;
+                }
+            }
+            
+            if (breakdown.length === 0) {
+                 vehicleNumberOutput.innerHTML = '<p class="text-red-500 font-semibold">Please enter a plate number containing letters and/or digits.</p>';
+                 return;
+            }
+
+            // Format the breakdown string using the breakdown array, matching the requested style
+            const calculationSteps = breakdown.map(item => 
+                `<span class="font-bold">${item.char}</span>(${item.value})`
+            ).join(' + ');
+
+            // Perform the reduction
+            const finalNumber = reduceNumber(totalSum);
+
+            // Generate HTML output
+            const { numberClass, masterTag } = getResultFormatting(finalNumber, 'emerald');
+
+            const outputHTML = `
+                <div class="text-center space-y-4">
+                    <p class="text-sm text-gray-500">Breakdown (Letters = Chaldean, Digits = Face Value):</p>
+                    <p class="text-lg text-gray-700 font-mono break-words p-2 bg-white rounded-md">${calculationSteps} = <span class="font-bold">${totalSum}</span></p>
+
+                    ${totalSum !== finalNumber ? `
+                        <p class="text-sm text-gray-500">Final Reduction (Sum of Digits):</p>
+                        <p class="text-xl font-bold text-emerald-500">${totalSum} <span class="text-gray-400">→</span> ${finalNumber}</p>
+                    ` : ''}
+
+                    <div class="pt-4 border-t mt-4 border-cyan-300">
+                        <p class="text-xl font-semibold text-gray-700">Your Vehicle Number:</p>
+                        <div class="flex justify-center items-center mt-2">
+                            <span class="${numberClass}">
+                                ${finalNumber}
+                            </span>
+                            ${masterTag}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            vehicleNumberOutput.innerHTML = outputHTML;
+        }
+
+        // Helper function for consistent result styling
+        function getResultFormatting(number, color = 'indigo') {
+            let numberClass = `text-5xl text-${color}-600`;
+            let masterTag = '';
+            
+            if (number === 11 || number === 22) {
+                numberClass = `text-6xl font-extrabold text-yellow-600 master-number`;
+                masterTag = '<span class="ml-4 text-xs font-semibold px-3 py-1 bg-yellow-200 text-yellow-800 rounded-full">MASTER NUMBER</span>';
+            }
+            return { numberClass, masterTag };
+        }
+
+        // Run calculation once on page load if input has content
+        window.onload = function() {
+            if (fullNameInput.value.trim() !== "") {
+                calculateChaldean();
+            }
+            if (vehicleNumberInput.value.trim() !== "") {
+                calculateVehicleNumber();
+            }
+        };
+
+    </script>
+
+</body>
+</html>
