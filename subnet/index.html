@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Subnet Calculator</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better aesthetics */
+        :root {
+            --primary-color: #3b82f6; /* blue-500 */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        .card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .input-style {
+            border-color: #d1d5db;
+            transition: border-color 0.2s;
+        }
+        .input-style:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 1px var(--primary-color);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="calculator-app" class="card bg-white w-full max-w-xl rounded-xl p-6 md:p-8">
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-6 text-center">
+            IP Subnet Calculator
+        </h1>
+
+        <!-- Input Section -->
+        <div class="space-y-4">
+            <div>
+                <label for="ipCidrInput" class="block text-sm font-medium text-gray-700 mb-1">
+                    IP Address with CIDR Notation (e.g., 192.168.1.10/24)
+                </label>
+                <input type="text" id="ipCidrInput" placeholder="e.g., 192.168.1.10/24" value="192.168.1.10/24"
+                       class="input-style w-full px-4 py-2 border rounded-lg focus:outline-none text-gray-700">
+            </div>
+            
+            <button onclick="calculateSubnet()"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition duration-150 ease-in-out transform hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                Calculate Subnet
+            </button>
+        </div>
+
+        <!-- Error/Message Display -->
+        <div id="message" class="mt-4 text-center text-red-600 font-medium hidden"></div>
+
+        <!-- Output Section -->
+        <div id="results" class="mt-8 pt-6 border-t border-gray-200 hidden">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Subnet Details</h2>
+
+            <!-- Results Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <!-- Network Address (Now first) -->
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <p class="text-sm font-medium text-green-600">Network Address</p>
+                    <p id="outputNetwork" class="text-lg font-mono text-gray-800"></p>
+                </div>
+
+                <!-- Subnet Mask (Now second) -->
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <p class="text-sm font-medium text-blue-600">Subnet Mask</p>
+                    <p id="outputMask" class="text-lg font-mono text-gray-800"></p>
+                </div>
+                
+                <!-- CIDR Notation -->
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <p class="text-sm font-medium text-blue-600">CIDR Notation</p>
+                    <p id="outputCIDR" class="text-lg font-mono text-gray-800"></p>
+                </div>
+
+                <!-- Broadcast Address -->
+                <div class="bg-red-50 p-4 rounded-lg">
+                    <p class="text-sm font-medium text-red-600">Broadcast Address</p>
+                    <p id="outputBroadcast" class="text-lg font-mono text-gray-800"></p>
+                </div>
+                
+                <!-- First Host -->
+                <div class="bg-yellow-50 p-4 rounded-lg">
+                    <p class="text-sm font-medium text-yellow-600">First Usable Host</p>
+                    <p id="outputFirstHost" class="text-lg font-mono text-gray-800"></p>
+                </div>
+
+                <!-- Last Host -->
+                <div class="bg-yellow-50 p-4 rounded-lg">
+                    <p class="text-sm font-medium text-yellow-600">Last Usable Host</p>
+                    <p id="outputLastHost" class="text-lg font-mono text-gray-800"></p>
+                </div>
+
+                <!-- Total Hosts -->
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <p class="text-sm font-medium text-purple-600">Total Hosts</p>
+                    <p id="outputTotalHosts" class="text-lg font-mono text-gray-800"></p>
+                </div>
+
+                <!-- Usable Hosts -->
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <p class="text-sm font-medium text-purple-600">Usable Hosts</p>
+                    <p id="outputUsableHosts" class="text-lg font-mono text-gray-800"></p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        /**
+         * Converts a single dotted-decimal IP octet (string) to an integer.
+         * @param {string} octet - The octet string.
+         * @returns {number|null} The integer value or null if invalid.
+         */
+        function octetToInt(octet) {
+            const num = parseInt(octet, 10);
+            if (isNaN(num) || num < 0 || num > 255) {
+                return null;
+            }
+            return num;
+        }
+
+        /**
+         * Converts a four-octet IP array (e.g., [192, 168, 1, 10]) into a single 32-bit integer.
+         * @param {number[]} octets - Array of four octets.
+         * @returns {number} 32-bit integer representation of the IP.
+         */
+        function ipToInteger(octets) {
+            return ((octets[0] << 24) >>> 0) + 
+                   ((octets[1] << 16) >>> 0) + 
+                   ((octets[2] << 8) >>> 0) + 
+                   (octets[3] >>> 0);
+        }
+
+        /**
+         * Converts a 32-bit integer back to a dotted-decimal IP address string.
+         * @param {number} ipInt - The 32-bit integer.
+         * @returns {string} The IP address string.
+         */
+        function integerToIp(ipInt) {
+            return [
+                (ipInt >>> 24) & 0xFF,
+                (ipInt >>> 16) & 0xFF,
+                (ipInt >>> 8) & 0xFF,
+                ipInt & 0xFF
+            ].join('.');
+        }
+
+        /**
+         * Validates and parses the IP address input.
+         * @param {string} ipString - The IP address string.
+         * @returns {number[]|null} Array of four octets (numbers) or null if invalid.
+         */
+        function parseIP(ipString) {
+            const parts = ipString.split('.');
+            if (parts.length !== 4) return null;
+            
+            const octets = parts.map(octetToInt);
+            if (octets.includes(null)) return null;
+
+            return octets;
+        }
+
+        /**
+         * Validates and parses the CIDR prefix input.
+         * @param {string} cidrString - The CIDR prefix string (e.g., "24").
+         * @returns {number|null} The prefix length (1-32) or null if invalid.
+         */
+        function parseCIDR(cidrString) {
+            // Note: input validation should handle cleaning up the '/' if necessary, 
+            // but in the single input field, we expect the string after the '/'
+            const cidr = parseInt(cidrString.trim(), 10);
+            if (isNaN(cidr) || cidr < 1 || cidr > 32) {
+                return null;
+            }
+            return cidr;
+        }
+
+        /**
+         * Calculates the Subnet details.
+         */
+        function calculateSubnet() {
+            const ipCidrString = document.getElementById('ipCidrInput').value.trim();
+            const messageEl = document.getElementById('message');
+            const resultsEl = document.getElementById('results');
+
+            // Reset previous state
+            messageEl.classList.add('hidden');
+            resultsEl.classList.add('hidden');
+
+            const parts = ipCidrString.split('/');
+            if (parts.length !== 2) {
+                messageEl.textContent = 'Invalid input format. Please use the format IP_ADDRESS/CIDR_PREFIX (e.g., 192.168.1.10/24).';
+                messageEl.classList.remove('hidden');
+                return;
+            }
+
+            const ipString = parts[0].trim();
+            const cidrString = parts[1].trim();
+            
+            const ipOctets = parseIP(ipString);
+            const cidr = parseCIDR(cidrString);
+
+            if (!ipOctets) {
+                messageEl.textContent = 'Invalid IP Address portion.';
+                messageEl.classList.remove('hidden');
+                return;
+            }
+
+            if (cidr === null) {
+                messageEl.textContent = 'Invalid CIDR prefix portion. Must be a number between 1 and 32.';
+                messageEl.classList.remove('hidden');
+                return;
+            }
+
+            // 1. Calculate the Subnet Mask (32-bit integer)
+            // Mask is a sequence of 'cidr' ones followed by (32 - cidr) zeros.
+            // (0xFFFFFFFF << (32 - cidr)) is used to create the mask, then '>>> 0' converts to unsigned 32-bit
+            const maskInt = (0xFFFFFFFF << (32 - cidr)) >>> 0;
+            const maskDotted = integerToIp(maskInt);
+
+            // 2. IP to Integer
+            const ipInt = ipToInteger(ipOctets);
+
+            // 3. Network Address
+            // Network Address = IP AND Mask
+            const networkInt = ipInt & maskInt;
+            const networkDotted = integerToIp(networkInt);
+
+            // 4. Broadcast Address
+            // The inverted mask (wildcard mask)
+            const wildcardInt = ~maskInt >>> 0;
+            // Broadcast Address = Network Address OR Wildcard Mask
+            const broadcastInt = networkInt | wildcardInt;
+            const broadcastDotted = integerToIp(broadcastInt);
+
+            // 5. Host Calculations
+            // Total Hosts = 2^(32 - cidr)
+            const totalHosts = 2 ** (32 - cidr);
+            const usableHosts = totalHosts > 2 ? totalHosts - 2 : 0;
+            
+            // First Host is Network Address + 1 (if usable hosts > 0)
+            let firstHostDotted = 'N/A';
+            if (usableHosts > 0) {
+                firstHostDotted = integerToIp(networkInt + 1);
+            }
+
+            // Last Host is Broadcast Address - 1 (if usable hosts > 0)
+            let lastHostDotted = 'N/A';
+            if (usableHosts > 0) {
+                lastHostDotted = integerToIp(broadcastInt - 1);
+            }
+
+
+            // --- Display Results ---
+
+            document.getElementById('outputMask').textContent = maskDotted;
+            document.getElementById('outputCIDR').textContent = '/' + cidr;
+            document.getElementById('outputNetwork').textContent = networkDotted;
+            document.getElementById('outputBroadcast').textContent = broadcastDotted;
+            document.getElementById('outputFirstHost').textContent = firstHostDotted;
+            document.getElementById('outputLastHost').textContent = lastHostDotted;
+            document.getElementById('outputTotalHosts').textContent = totalHosts.toLocaleString();
+            document.getElementById('outputUsableHosts').textContent = usableHosts.toLocaleString();
+
+            resultsEl.classList.remove('hidden');
+        }
+
+        // Run calculation on load with default values
+        window.onload = function() {
+            calculateSubnet();
+        };
+    </script>
+</body>
+</html>
