@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Tech Projects</title>
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background-color: #121212; /* Dark background */
+            color: #e0e0e0; /* Light text */
+            line-height: 1.6;
+        }
+
+        /* Container & Header */
+        .container {
+            max-width: 900px;
+            margin: auto;
+            text-align: center;
+        }
+
+        h1 {
+            color: #4CAF50; /* Accent color for title */
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 15px;
+            letter-spacing: 1px;
+        }
+
+        /* Project Cards Layout */
+        .project-list {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Responsive grid */
+            gap: 20px;
+        }
+
+        .project-item {
+            background: #1e1e1e; /* Slightly lighter dark card background */
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s, box-shadow 0.3s;
+            overflow: hidden;
+            text-align: left;
+        }
+
+        /* Hover Effect */
+        .project-item:hover {
+            transform: translateY(-5px); /* Lift effect */
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.7), 0 0 15px rgba(76, 175, 80, 0.5); /* Glowing shadow */
+        }
+
+        /* Anchor Styling */
+        .project-link {
+            text-decoration: none;
+            color: inherit; /* Inherit light text color */
+            padding: 20px;
+            display: block;
+            height: 100%; /* Make the whole card clickable */
+        }
+
+        .project-title {
+            font-size: 1.5em;
+            color: #4CAF50; /* Accent color */
+            margin-bottom: 5px;
+        }
+
+        .project-url {
+            display: block;
+            font-size: 0.9em;
+            color: #999;
+            margin-top: 10px;
+            font-family: monospace;
+            background: #2a2a2a;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        /* Icon Styling */
+        .icon {
+            margin-right: 10px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 My Development Projects</h1>
+        <ul class="project-list">
+            <li class="project-item">
+                <a href="/Num" class="project-link">
+                    <div class="project-title">
+                        <span class="icon">🔢</span> Numerology Calculator
+                    </div>
+                    <p>A tool for calculating numerological values based on names or dates.</p>
+                    <span class="project-url">/Num</span>
+                </a>
+            </li>
+            <li class="project-item">
+                <a href="/VEH" class="project-link">
+                    <div class="project-title">
+                        <span class="icon">🚗</span> Vehicle Numerology Calculator
+                    </div>
+                    <p>Determine the auspiciousness of vehicle registration numbers.</p>
+                    <span class="project-url">/VEH</span>
+                </a>
+            </li>
+            <li class="project-item">
+                <a href="/subnet" class="project-link">
+                    <div class="project-title">
+                        <span class="icon">🌐</span> IP Subnet Calculator
+                    </div>
+                    <p>Essential utility for network engineers and students to calculate subnets.</p>
+                    <span class="project-url">/subnet</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+</body>
+</html>
