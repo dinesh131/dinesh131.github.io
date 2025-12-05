@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PEM → P12 Converter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/node-forge/dist/forge.min.js"></script>
+
+  <style>
+    body {
+      background: #0f172a;
+      font-family: system-ui, sans-serif;
+      color: #e5e7eb;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .card {
+      background: #1e293b;
+      padding: 25px;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 900px;
+      box-shadow: 0 0 15px rgba(0,0,0,.4);
+    }
+    textarea, input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+      background: #0f172a;
+      color: #e5e7eb;
+      border: 1px solid #475569;
+      border-radius: 6px;
+    }
+    textarea { min-height: 130px; }
+    button {
+      margin-top: 12px;
+      padding: 12px;
+      background: #22c55e;
+      color: white;
+      border-radius: 6px;
+      width: 100%;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+    }
+    .status { margin-top: 15px; }
+    .error { color: #f87171; }
+    .success { color: #4ade80; }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h2>PEM → PKCS#12 (.p12) Converter</h2>
+    <p>Upload or paste PEM files. Everything runs locally in your browser.</p>
+
+    <div class="grid">
+      <!-- Private Key -->
+      <div>
+        <label>Private Key</label>
+        <input type="file" id="privKeyFile">
+        <textarea id="privKey" placeholder="Paste private key here"></textarea>
+      </div>
+
+      <!-- Certificate -->
+      <div>
+        <label>Certificate</label>
+        <input type="file" id="certFile">
+        <textarea id="certPem" placeholder="Paste certificate here"></textarea>
+      </div>
+
+      <!-- CA Chain -->
+      <div>
+        <label>CA Chain (Combined PEM)</label>
+        <input type="file" id="caFile">
+        <textarea id="caPem" placeholder="Paste CA chain here"></textarea>
+      </div>
+    </div>
+
+    <label>P12 Password</label>
+    <input type="password" id="p12Password" placeholder="Optional">
+
+    <label>Output Filename</label>
+    <input id="p12FileName" value="certificate.p12">
+
+    <button id="convertBtn">Convert to .p12</button>
+
+    <div id="status" class="status"></div>
+  </div>
+
+<script>
+// Read file into textarea
+function readFile(input, textareaId) {
+  if (!input.files.length) return;
+  const reader = new FileReader();
+  reader.onload = () => document.getElementById(textareaId).value = reader.result;
+  reader.readAsText(input.files[0]);
+}
+
+privKeyFile.onchange = () => readFile(privKeyFile, "privKey");
+certFile.onchange   = () => readFile(certFile, "certPem");
+caFile.onchange     = () => readFile(caFile, "caPem");
+
+// Extract CN from certificate
+function getCN(cert) {
+  for (let attr of cert.subject.attributes) {
+    if (attr.name === "commonName") return attr.value;
+  }
+  return "certificate";
+}
+
+// Parse multiple PEM certificates
+function parseCerts(pem) {
+  const list = [];
+  const regex = /-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g;
+  let match;
+  while ((match = regex.exec(pem)) !== null) {
+    list.push(forge.pki.certificateFromPem(match[0]));
+  }
+  return list;
+}
+
+// Set status message
+function show(msg, err = false) {
+  const el = document.getElementById("status");
+  el.textContent = msg;
+  el.className = "status " + (err ? "error" : "success");
+}
+
+// Convert button action
+convertBtn.onclick = () => {
+  try {
+    const privKeyPem = document.getElementById("privKey").value.trim();
+    const certPem = document.getElementById("certPem").value.trim();
+    const caPem = document.getElementById("caPem").value.trim();
+
+    if (!privKeyPem || !certPem) {
+      show("Private key and certificate are required!", true);
+      return;
+    }
+
+    const privateKey = forge.pki.privateKeyFromPem(privKeyPem);
+    const leafCert  = forge.pki.certificateFromPem(certPem);
+    const caCerts   = parseCerts(caPem);
+
+    // Full chain → leaf first
+    const fullChain = [leafCert, ...caCerts];
+
+    // FriendlyName = CN of leaf certificate
+    const alias = getCN(leafCert);
+
+    const password = document.getElementById("p12Password").value;
+    let filename = document.getElementById("p12FileName").value;
+    if (!filename.toLowerCase().endsWith(".p12")) filename += ".p12";
+
+    // Create PKCS#12
+    const p12Asn1 = forge.pkcs12.toPkcs12Asn1(
+      privateKey,
+      fullChain,
+      password,
+      {
+        algorithm: "3des",
+        friendlyName: alias,
+        generateLocalKeyId: true
+      }
+    );
+
+    const der = forge.asn1.toDer(p12Asn1).getBytes();
+    const buf = new Uint8Array(der.length);
+    for (let i = 0; i < der.length; i++) buf[i] = der.charCodeAt(i);
+
+    const blob = new Blob([buf], { type: "application/x-pkcs12" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+
+    show("P12 generated successfully with alias: " + alias);
+  }
+  catch (e) {
+    show("Error: " + e.message, true);
+  }
+};
+</script>
+
+</body>
+</html>
