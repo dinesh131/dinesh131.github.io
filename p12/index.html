@@ -1,204 +1,313 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>PEM → P12 Converter</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://cdn.jsdelivr.net/npm/node-forge/dist/forge.min.js"></script>
+<meta charset="UTF-8" />
+<title>PEM → PKCS#12 (.p12/.pfx) Converter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <style>
-    body {
-      background: #0f172a;
-      font-family: system-ui, sans-serif;
-      color: #e5e7eb;
-      margin: 0;
-      padding: 20px;
-      display: flex;
-      justify-content: center;
-    }
-    .card {
-      background: #1e293b;
-      padding: 25px;
-      border-radius: 12px;
-      width: 100%;
-      max-width: 900px;
-      box-shadow: 0 0 15px rgba(0,0,0,.4);
-    }
-    textarea, input {
-      width: 100%;
-      padding: 10px;
-      margin-top: 6px;
-      background: #0f172a;
-      color: #e5e7eb;
-      border: 1px solid #475569;
-      border-radius: 6px;
-    }
-    textarea { min-height: 130px; }
+<script src="https://cdn.jsdelivr.net/npm/node-forge/dist/forge.min.js"></script>
 
-    button {
-      margin-top: 12px;
-      padding: 12px;
-      background: #22c55e;
-      color: white;
-      border-radius: 6px;
-      width: 100%;
-      border: none;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 20px;
-    }
-    .status { margin-top: 15px; }
-    .error { color: #f87171; }
-    .success { color: #4ade80; }
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    background: #0f172a;
+    font-family: system-ui, sans-serif;
+    color: #e5e7eb;
+  }
 
-    .privacy {
-      margin-top: 15px;
-      background: #0f172a;
-      padding: 10px;
-      border-radius: 6px;
-      color: #94a3b8;
-      font-size: 0.9rem;
-      border: 1px solid #334155;
-    }
-  </style>
+  .container {
+    width: 100%;
+    padding: 20px 40px;
+    box-sizing: border-box;
+  }
+
+  h2 {
+    margin-top: 0;
+    font-size: 32px;
+    font-weight: 700;
+  }
+
+  .notice {
+    background: #1e293b;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    margin-bottom: 20px;
+  }
+
+  .row {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+  }
+
+  .pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  textarea, input, select {
+    background: #0f172a;
+    color: #e5e7eb;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    padding: 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  textarea {
+    height: 260px;
+    resize: vertical;
+  }
+
+  .label {
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+button {
+    background: #22c55e;
+    border: none;
+    padding: 12px 28px;
+    font-size: 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    display: block;
+    margin: 25px auto;
+    width: auto;
+}
+
+button:hover {
+    background: #16a34a;
+}
+
+  .status {
+    margin-top: 15px;
+    font-size: 16px;
+  }
+
+  .error { color: #f87171; }
+  .success { color: #4ade80; }
+
+/* ============================
+   MOBILE RESPONSIVE LAYOUT
+   ============================ */
+@media (max-width: 900px) {
+  .row {
+    flex-direction: column;
+  }
+
+  .pane textarea {
+    height: 200px;
+  }
+
+  .container {
+    padding: 15px;
+  }
+
+  h2 {
+    font-size: 24px;
+  }
+
+  button {
+    padding: 12px 20px;
+    font-size: 16px;
+  }
+
+  .label {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 600px) {
+  textarea {
+    height: 180px;
+  }
+
+  .notice {
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  input, select {
+    font-size: 15px;
+    padding: 8px;
+  }
+
+  button {
+    padding: 10px 20px;
+    font-size: 15px;
+  }
+}
+
+</style>
 </head>
 
 <body>
-  <div class="card">
-    <h2>PEM → PKCS#12 (.p12) Converter</h2>
+<div class="container">
 
-    <div class="privacy">
-      🔒 <strong>Privacy Notice:</strong>  
-      All processing happens locally in your browser.  
-      <strong>No private key or certificate is uploaded to any server.</strong>
-    </div>
+<h2>PEM → PKCS#12 (.p12/.pfx) Converter</h2>
 
-    <div class="grid">
-      <!-- Private Key -->
-      <div>
-        <label>Private Key</label>
-        <input type="file" id="privKeyFile">
-        <textarea id="privKey" placeholder="Paste private key here"></textarea>
-      </div>
+<div class="notice">
+  🔒 <strong>Privacy Notice:</strong>  
+  All processing happens locally in your browser.  
+  <strong>No private key or certificate is uploaded to any server.</strong>
+</div>
 
-      <!-- Certificate -->
-      <div>
-        <label>Certificate (.pem / .crt)</label>
-        <input type="file" id="certFile">
-        <textarea id="certPem" placeholder="Paste certificate here"></textarea>
-      </div>
+<div class="row">
 
-      <!-- CA Chain -->
-      <div>
-        <label>CA Chain (Combined PEM)</label>
-        <input type="file" id="caFile">
-        <textarea id="caPem" placeholder="Paste CA chain here"></textarea>
-      </div>
-    </div>
-
-    <label>P12 Password</label>
-    <input type="password" id="p12Password" placeholder="Optional">
-
-    <label>Output Filename</label>
-    <input id="p12FileName" value="certificate.p12">
-
-    <button id="convertBtn">Convert to .p12</button>
-
-    <div id="status" class="status"></div>
+  <!-- PRIVATE KEY -->
+  <div class="pane">
+    <label class="label">Private Key</label>
+    <input type="file" id="privKeyFile">
+    <textarea id="privKey"></textarea>
   </div>
+
+  <!-- CERTIFICATE -->
+  <div class="pane">
+    <label class="label">Certificate (.pem/.crt)</label>
+    <input type="file" id="certFile">
+    <textarea id="certPem"></textarea>
+  </div>
+
+  <!-- CA CHAIN -->
+  <div class="pane">
+    <label class="label">CA Chain (PEM)</label>
+    <input type="file" id="caFile">
+    <textarea id="caPem"></textarea>
+  </div>
+
+</div>
+
+<div class="row" style="margin-top:20px;">
+
+  <div class="pane">
+    <label class="label">P12/PFX Password</label>
+    <input type="password" id="p12Password" placeholder="Optional">
+  </div>
+
+  <div class="pane">
+    <label class="label">Output Format</label>
+    <select id="pfxFormat">
+      <option value="p12">PKCS#12 (.p12)</option>
+      <option value="pfx">PFX (.pfx)</option>
+    </select>
+  </div>
+
+  <div class="pane">
+    <label class="label">Output Filename</label>
+    <input id="p12FileName" placeholder="Auto-filled from CN">
+  </div>
+
+</div>
+
+<button id="convertBtn">Convert</button>
+
+<div id="status" class="status"></div>
+
+</div>
 
 <script>
 // Read file into textarea
-function readFile(input, textareaId) {
+function readFile(input, target) {
   if (!input.files.length) return;
   const reader = new FileReader();
-  reader.onload = () => document.getElementById(textareaId).value = reader.result;
+  reader.onload = () => document.getElementById(target).value = reader.result;
   reader.readAsText(input.files[0]);
 }
 
 privKeyFile.onchange = () => readFile(privKeyFile, "privKey");
-certFile.onchange   = () => readFile(certFile, "certPem");
+certFile.onchange   = () => {
+  readFile(certFile, "certPem");
+  setTimeout(autoFillCN, 300);
+};
 caFile.onchange     = () => readFile(caFile, "caPem");
 
-// Extract CN from certificate
+// Extract CN
 function getCN(cert) {
-  for (let attr of cert.subject.attributes) {
-    if (attr.name === "commonName") return attr.value;
+  for (let a of cert.subject.attributes) {
+    if (a.name === "commonName") return a.value;
   }
   return "certificate";
 }
 
-// Parse multiple PEM certificates
-function parseCerts(pem) {
-  const list = [];
-  const regex = /-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g;
-  let match;
-  while ((match = regex.exec(pem)) !== null) {
-    list.push(forge.pki.certificateFromPem(match[0]));
-  }
-  return list;
+// Autofill filename from CN
+function autoFillCN() {
+  try {
+    const pem = document.getElementById("certPem").value.trim();
+    if (!pem) return;
+
+    const cert = forge.pki.certificateFromPem(pem);
+    const cn = getCN(cert);
+
+    document.getElementById("p12FileName").value = cn;
+  } catch {}
 }
 
-// Set status message
-function show(msg, err = false) {
+// Parse multiple certs
+function parseCerts(pem) {
+  const arr = [];
+  const re = /-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g;
+  let m;
+  while ((m = re.exec(pem)) !== null) arr.push(forge.pki.certificateFromPem(m[0]));
+  return arr;
+}
+
+function show(msg, err=false){
   const el = document.getElementById("status");
   el.textContent = msg;
   el.className = "status " + (err ? "error" : "success");
 }
 
-// Convert button action
+// Convert
 convertBtn.onclick = () => {
   try {
-    const privKeyPem = document.getElementById("privKey").value.trim();
-    const certPem = document.getElementById("certPem").value.trim();
-    const caPem = document.getElementById("caPem").value.trim();
+    const keyPem = document.getElementById("privKey").value.trim();
+    const crtPem = document.getElementById("certPem").value.trim();
+    const caPemText = document.getElementById("caPem").value.trim(); // FIXED
 
-    if (!privKeyPem || !certPem) {
-      show("Private key and certificate are required!", true);
+    if (!keyPem || !crtPem) {
+      show("Private key + certificate are required.", true);
       return;
     }
 
-    const privateKey = forge.pki.privateKeyFromPem(privKeyPem);
-    const leafCert  = forge.pki.certificateFromPem(certPem);
-    const caCerts   = parseCerts(caPem);
+    const key  = forge.pki.privateKeyFromPem(keyPem);
+    const cert = forge.pki.certificateFromPem(crtPem);
+    const ca   = parseCerts(caPemText);
 
-    // Full chain → leaf first
-    const fullChain = [leafCert, ...caCerts];
-
-    // FriendlyName = CN of leaf certificate
-    const alias = getCN(leafCert);
+    const alias = getCN(cert);
+    const chain = [cert, ...ca];
 
     const password = document.getElementById("p12Password").value;
-    let filename = document.getElementById("p12FileName").value;
-    if (!filename.toLowerCase().endsWith(".p12")) filename += ".p12";
+    let filename   = document.getElementById("p12FileName").value.trim();
+    const fmt      = document.getElementById("pfxFormat").value;
 
-    // Create PKCS#12
+    if (!filename) filename = alias;
+    filename += fmt === "pfx" ? ".pfx" : ".p12";
+
     const p12Asn1 = forge.pkcs12.toPkcs12Asn1(
-      privateKey,
-      fullChain,
+      key,
+      chain,
       password,
-      {
-        algorithm: "3des",
-        friendlyName: alias,
-        generateLocalKeyId: true
-      }
+      { algorithm:"3des", friendlyName:alias, generateLocalKeyId:true }
     );
 
     const der = forge.asn1.toDer(p12Asn1).getBytes();
     const buf = new Uint8Array(der.length);
-    for (let i = 0; i < der.length; i++) buf[i] = der.charCodeAt(i);
+    for (let i=0;i<der.length;i++) buf[i] = der.charCodeAt(i);
 
-    const blob = new Blob([buf], { type: "application/x-pkcs12" });
+    const blob = new Blob([buf], { type:"application/x-pkcs12" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = filename;
     a.click();
 
-    show("P12 generated successfully with alias: " + alias);
+    show(`Generated ${filename} with alias: ${alias}`, false);
   }
   catch (e) {
     show("Error: " + e.message, true);
