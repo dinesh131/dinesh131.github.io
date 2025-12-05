@@ -2,9 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>P12/PFX → KEY/CRT Converter</title>
+  <title>P12/PFX → KEY / CRT / CHAIN Converter</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <script src="https://cdn.jsdelivr.net/npm/node-forge/dist/forge.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
   <style>
     body {
@@ -16,26 +18,32 @@
     }
     .container {
       width: 100%;
-      box-sizing: border-box;
       padding: 20px 40px;
+      box-sizing: border-box;
     }
     h2 {
       margin-top: 0;
       font-size: 28px;
       font-weight: 700;
     }
+
+    /* --- Single-line Privacy Notice --- */
     .notice {
       background: #1e293b;
-      padding: 12px;
+      padding: 10px;
       border-radius: 8px;
       border: 1px solid #334155;
       margin-bottom: 20px;
       font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
+
     .row {
       display: flex;
-      gap: 20px;
       width: 100%;
+      gap: 20px;
       flex-wrap: wrap;
     }
     .pane {
@@ -55,103 +63,112 @@
       border: 1px solid #475569;
       border-radius: 6px;
       padding: 9px 10px;
-      box-sizing: border-box;
       width: 100%;
+      box-sizing: border-box;
     }
     textarea {
       height: 220px;
       resize: vertical;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 0.8rem;
+      font-family: monospace;
+      font-size: 0.85rem;
     }
-    button {
+
+    /* --- Extract + Download Buttons (Green) --- */
+    .btn-main,
+    .btn-small {
       background: #22c55e;
+      color: white;
       border: none;
       padding: 10px 24px;
-      font-size: 16px;
+      font-size: 15px;
       border-radius: 6px;
       cursor: pointer;
       font-weight: 600;
-      display: inline-block;
+      text-align: center;
     }
-    button:hover {
-      background: #16a34a;
-    }
+
     .btn-main {
       display: block;
       margin: 22px auto 10px;
     }
-    .btn-small {
-      margin-top: 8px;
-      align-self: flex-start;
+
+    .btn-main:hover,
+    .btn-small:hover:not(:disabled) {
+      background: #16a34a;
     }
+
+    .btn-small:disabled {
+      background: #14532d;
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Proper spacing for ZIP button */
+    #downloadZip {
+      margin-top: 12px !important;
+    }
+
     .status {
-      margin-top: 10px;
+      margin-top: 12px;
       font-size: 0.95rem;
     }
     .error { color: #f87171; }
     .success { color: #4ade80; }
 
-    /* Mobile responsiveness */
     @media (max-width: 900px) {
-      .container {
-        padding: 16px;
-      }
+      .container { padding: 16px; }
       h2 { font-size: 24px; }
-      textarea { height: 200px; }
-    }
-    @media (max-width: 600px) {
-      textarea { height: 180px; }
-      input { font-size: 0.9rem; padding: 8px; }
-      button { font-size: 0.9rem; padding: 8px 18px; }
     }
   </style>
 </head>
+
 <body>
 <div class="container">
+
   <h2>P12/PFX → .key / .crt / chain.crt Converter</h2>
 
   <div class="notice">
-    🔒 <strong>Privacy Notice:</strong>
-    All processing happens locally in your browser.
-    <strong>Your .p12/.pfx file and keys are never uploaded to any server.</strong>
+    🔒 <strong>Privacy Notice:</strong> All processing happens locally in your browser. Your .p12/.pfx file and keys are never uploaded to any server.
   </div>
 
-  <!-- Input row -->
   <div class="row" style="margin-bottom: 10px;">
     <div class="pane">
       <label class="label">P12 / PFX File</label>
       <input type="file" id="pfxFile" accept=".p12,.pfx" />
     </div>
+
     <div class="pane">
       <label class="label">Password</label>
       <input type="password" id="pfxPassword" placeholder="Password for .p12/.pfx (if any)" />
     </div>
+
     <div class="pane">
       <label class="label">Base Filename (optional)</label>
-      <input type="text" id="baseName" placeholder="Will auto-use CN if left empty" />
+      <input type="text" id="baseName" placeholder="Will use CN if left empty" />
     </div>
   </div>
 
   <button id="extractBtn" class="btn-main">Extract KEY / CRT / chain.crt</button>
   <div id="status" class="status"></div>
 
-  <!-- Output row -->
   <div class="row" style="margin-top: 20px;">
     <div class="pane">
       <label class="label">Private Key (.key)</label>
       <textarea id="keyPem" readonly></textarea>
       <button id="downloadKey" class="btn-small" disabled>Download .key</button>
     </div>
+
     <div class="pane">
       <label class="label">Certificate (.crt)</label>
       <textarea id="certPem" readonly></textarea>
       <button id="downloadCert" class="btn-small" disabled>Download .crt</button>
     </div>
+
     <div class="pane">
-      <label class="label">CA Chain (chain.crt - combined)</label>
+      <label class="label">CA Chain (.crt combined)</label>
       <textarea id="chainPem" readonly></textarea>
       <button id="downloadChain" class="btn-small" disabled>Download chain.crt</button>
+      <button id="downloadZip" class="btn-small" disabled>Download ZIP</button>
     </div>
   </div>
 </div>
@@ -159,30 +176,10 @@
 <script>
 let pfxBinary = null;
 
-// Read P12/PFX file as binary string for forge
-document.getElementById("pfxFile").addEventListener("change", function () {
-  const file = this.files[0];
-  if (!file) {
-    pfxBinary = null;
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    const bytes = new Uint8Array(e.target.result);
-    let binary = "";
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    pfxBinary = binary;
-    setStatus("File loaded. Enter password and click Extract.", false);
-  };
-  reader.readAsArrayBuffer(file);
-});
-
-function setStatus(msg, isError) {
+function setStatus(msg, error = false) {
   const el = document.getElementById("status");
   el.textContent = msg;
-  el.className = "status " + (isError ? "error" : "success");
+  el.className = "status " + (error ? "error" : "success");
 }
 
 function getCN(cert) {
@@ -192,119 +189,134 @@ function getCN(cert) {
   return "certificate";
 }
 
-function parsePfx() {
-  if (!pfxBinary) {
-    throw new Error("No P12/PFX file loaded.");
-  }
-  const password = document.getElementById("pfxPassword").value || "";
+/* --- Read file --- */
+document.getElementById("pfxFile").addEventListener("change", function () {
+  const file = this.files[0];
+  if (!file) return;
 
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const bytes = new Uint8Array(e.target.result);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    pfxBinary = binary;
+    setStatus("File loaded. Enter password and extract.", false);
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+/* --- Parse PFX --- */
+function parsePfx() {
+  if (!pfxBinary) throw new Error("No PFX file loaded.");
+
+  const password = document.getElementById("pfxPassword").value;
   const asn1 = forge.asn1.fromDer(pfxBinary);
+
   let p12;
   try {
     p12 = forge.pkcs12.pkcs12FromAsn1(asn1, password);
-  } catch (e) {
-    throw new Error("Failed to parse P12/PFX. Wrong password?");
+  } catch {
+    throw new Error("Invalid P12/PFX password.");
   }
 
-  // Find private key
-  let keyBags = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag })[forge.pki.oids.pkcs8ShroudedKeyBag];
-  if (!keyBags || keyBags.length === 0) {
-    keyBags = p12.getBags({ bagType: forge.pki.oids.keyBag })[forge.pki.oids.keyBag];
-  }
-  if (!keyBags || keyBags.length === 0) {
-    throw new Error("No private key found in P12/PFX.");
-  }
-  const keyBag = keyBags[0];
+  let keyBag =
+    p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag })[forge.pki.oids.pkcs8ShroudedKeyBag] ||
+    p12.getBags({ bagType: forge.pki.oids.keyBag })[forge.pki.oids.keyBag];
+
+  if (!keyBag || keyBag.length === 0) throw new Error("Private key not found.");
+
+  keyBag = keyBag[0];
   const privateKey = keyBag.key;
-  const keyLocalId = keyBag.attributes.localKeyId && keyBag.attributes.localKeyId[0];
+  const keyId = keyBag.attributes.localKeyId && keyBag.attributes.localKeyId[0];
 
-  // Find certs
-  const certBagsObj = p12.getBags({ bagType: forge.pki.oids.certBag });
-  const certBags = certBagsObj[forge.pki.oids.certBag] || [];
-  if (certBags.length === 0) {
-    throw new Error("No certificates found in P12/PFX.");
-  }
+  const certBags =
+    p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag] || [];
 
   let leafCert = null;
-  const chainCerts = [];
+  const chain = [];
 
-  // Match cert whose localKeyId equals the key bag's localKeyId
   for (let bag of certBags) {
-    const bagLocalId = bag.attributes.localKeyId && bag.attributes.localKeyId[0];
-    if (keyLocalId && bagLocalId && bagLocalId === keyLocalId) {
-      leafCert = bag.cert;
-    } else {
-      chainCerts.push(bag.cert);
-    }
+    const id = bag.attributes.localKeyId && bag.attributes.localKeyId[0];
+    if (id && keyId && id === keyId) leafCert = bag.cert;
+    else chain.push(bag.cert);
   }
 
-  // Fallback: if no match, first cert = leaf, rest = chain
   if (!leafCert) {
     leafCert = certBags[0].cert;
-    chainCerts.length = 0;
-    for (let i = 1; i < certBags.length; i++) {
-      chainCerts.push(certBags[i].cert);
-    }
+    chain.length = 0;
+    for (let i = 1; i < certBags.length; i++) chain.push(certBags[i].cert);
   }
 
-  return { privateKey, leafCert, chainCerts };
+  return { privateKey, leafCert, chain };
 }
 
-function downloadText(filename, text) {
-  const blob = new Blob([text], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-// Main extract button
-document.getElementById("extractBtn").addEventListener("click", () => {
+/* --- Main Extract --- */
+document.getElementById("extractBtn").onclick = () => {
   try {
-    const { privateKey, leafCert, chainCerts } = parsePfx();
+    const { privateKey, leafCert, chain } = parsePfx();
 
     const keyPem = forge.pki.privateKeyToPem(privateKey);
     const certPem = forge.pki.certificateToPem(leafCert);
-    const chainPem = chainCerts.map(c => forge.pki.certificateToPem(c)).join("\n");
+    const chainPem = chain.map(c => forge.pki.certificateToPem(c)).join("\n");
 
     document.getElementById("keyPem").value = keyPem;
     document.getElementById("certPem").value = certPem;
     document.getElementById("chainPem").value = chainPem;
 
-    // Determine base name
     let base = document.getElementById("baseName").value.trim();
     if (!base) {
       base = getCN(leafCert);
       document.getElementById("baseName").value = base;
     }
 
-    // Enable download buttons
-    const btnKey = document.getElementById("downloadKey");
-    const btnCert = document.getElementById("downloadCert");
-    const btnChain = document.getElementById("downloadChain");
+    document.getElementById("downloadKey").disabled = false;
+    document.getElementById("downloadCert").disabled = false;
+    document.getElementById("downloadChain").disabled = !chainPem.trim();
+    document.getElementById("downloadZip").disabled = false;
 
-    btnKey.disabled = false;
-    btnCert.disabled = false;
-    btnChain.disabled = chainCerts.length === 0;
+    /* Downloads */
+    document.getElementById("downloadKey").onclick =
+      () => downloadFile(base + ".key", keyPem);
 
-    // Attach click handlers
-    btnKey.onclick = () => downloadText(base + ".key", keyPem);
-    btnCert.onclick = () => downloadText(base + ".crt", certPem);
-    btnChain.onclick = () => {
-      if (!chainPem.trim()) return;
-      downloadText(base + "-chain.crt", chainPem);
+    document.getElementById("downloadCert").onclick =
+      () => downloadFile(base + ".crt", certPem);
+
+    document.getElementById("downloadChain").onclick =
+      () => downloadFile(base + "-chain.crt", chainPem);
+
+    document.getElementById("downloadZip").onclick = async () => {
+      const zip = new JSZip();
+      zip.file(base + ".key", keyPem);
+      zip.file(base + ".crt", certPem);
+      if (chainPem.trim()) zip.file(base + "-chain.crt", chainPem);
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      downloadBlob(blob, base + ".zip");
     };
 
-    setStatus(`Extraction successful. Base name: ${base}`, false);
+    setStatus("Extraction successful!", false);
   } catch (e) {
-    console.error(e);
     setStatus("Error: " + e.message, true);
   }
-});
+};
+
+/* --- Download Helpers --- */
+function downloadFile(name, content) {
+  const blob = new Blob([content], { type: "text/plain" });
+  downloadBlob(blob, name);
+}
+
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 </script>
+
 </body>
 </html>
