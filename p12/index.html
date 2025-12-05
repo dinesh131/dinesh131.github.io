@@ -34,6 +34,7 @@
       border-radius: 6px;
     }
     textarea { min-height: 130px; }
+
     button {
       margin-top: 12px;
       padding: 12px;
@@ -53,13 +54,28 @@
     .status { margin-top: 15px; }
     .error { color: #f87171; }
     .success { color: #4ade80; }
+
+    .privacy {
+      margin-top: 15px;
+      background: #0f172a;
+      padding: 10px;
+      border-radius: 6px;
+      color: #94a3b8;
+      font-size: 0.9rem;
+      border: 1px solid #334155;
+    }
   </style>
 </head>
 
 <body>
   <div class="card">
     <h2>PEM → PKCS#12 (.p12) Converter</h2>
-    <p>Upload or paste PEM files. Everything runs locally in your browser.</p>
+
+    <div class="privacy">
+      🔒 <strong>Privacy Notice:</strong>  
+      All processing happens locally in your browser.  
+      <strong>No private key or certificate is uploaded to any server.</strong>
+    </div>
 
     <div class="grid">
       <!-- Private Key -->
@@ -71,7 +87,7 @@
 
       <!-- Certificate -->
       <div>
-        <label>Certificate</label>
+        <label>Certificate (.pem / .crt)</label>
         <input type="file" id="certFile">
         <textarea id="certPem" placeholder="Paste certificate here"></textarea>
       </div>
