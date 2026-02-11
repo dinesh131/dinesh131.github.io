@@ -1,320 +1,391 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>P12/PFX → KEY / CRT / CHAIN Converter</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="UTF-8">
+<title>P12 / PFX → KEY / CRT Converter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <script src="https://cdn.jsdelivr.net/npm/node-forge/dist/forge.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/node-forge/dist/forge.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background: #0f172a;
-      font-family: system-ui, sans-serif;
-      color: #e5e7eb;
-    }
-    .container {
-      width: 100%;
-      padding: 20px 40px;
-      box-sizing: border-box;
-    }
-    h2 {
-      margin-top: 0;
-      font-size: 28px;
-      font-weight: 700;
-    }
+<style>
+*{box-sizing:border-box}
 
-    /* --- Single-line Privacy Notice --- */
-    .notice {
-      background: #1e293b;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #334155;
-      margin-bottom: 20px;
-      font-size: 0.95rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+body{
+  margin:0;
+  font-family:Inter,system-ui;
+  background:linear-gradient(135deg,#0f172a,#1e293b);
+  color:#f1f5f9;
+}
 
-    .row {
-      display: flex;
-      width: 100%;
-      gap: 20px;
-      flex-wrap: wrap;
-    }
-    .pane {
-      flex: 1;
-      min-width: 260px;
-      display: flex;
-      flex-direction: column;
-    }
-    .label {
-      margin-bottom: 6px;
-      font-size: 14px;
-      font-weight: 600;
-    }
-    input, textarea {
-      background: #0f172a;
-      color: #e5e7eb;
-      border: 1px solid #475569;
-      border-radius: 6px;
-      padding: 9px 10px;
-      width: 100%;
-      box-sizing: border-box;
-    }
-    textarea {
-      height: 220px;
-      resize: vertical;
-      font-family: monospace;
-      font-size: 0.85rem;
-    }
+.wrapper{
+  max-width:1300px;
+  margin:auto;
+  padding:40px 20px;
+}
 
-    /* --- Extract + Download Buttons (Green) --- */
-    .btn-main,
-    .btn-small {
-      background: #22c55e;
-      color: white;
-      border: none;
-      padding: 10px 24px;
-      font-size: 15px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-      text-align: center;
-    }
+.header{
+  text-align:center;
+  margin-bottom:30px;
+}
 
-    .btn-main {
-      display: block;
-      margin: 22px auto 10px;
-    }
+.header h1{
+  margin:0;
+  font-size:34px;
+}
 
-    .btn-main:hover,
-    .btn-small:hover:not(:disabled) {
-      background: #16a34a;
-    }
+.notice{
+  text-align:center;
+  opacity:.85;
+  margin-bottom:20px;
+}
 
-    .btn-small:disabled {
-      background: #14532d;
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
+.card{
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:16px;
+  padding:20px;
+  margin-bottom:20px;
+  transition:.3s;
+}
 
-    /* Proper spacing for ZIP button */
-    #downloadZip {
-      margin-top: 12px !important;
-    }
+.card:hover{
+  border-color:#22c55e;
+}
 
-    .status {
-      margin-top: 12px;
-      font-size: 0.95rem;
-    }
-    .error { color: #f87171; }
-    .success { color: #4ade80; }
+.row{
+  display:flex;
+  gap:20px;
+  flex-wrap:wrap;
+}
 
-    @media (max-width: 900px) {
-      .container { padding: 16px; }
-      h2 { font-size: 24px; }
-    }
-  </style>
+.pane{
+  flex:1;
+  min-width:260px;
+  display:flex;
+  flex-direction:column;
+}
+
+.label{
+  margin-bottom:6px;
+  font-weight:600;
+}
+
+input,textarea{
+  background:#0f172a;
+  border:1px solid #334155;
+  border-radius:10px;
+  padding:10px;
+  color:#fff;
+  transition:.3s;
+}
+
+textarea{
+  min-height:200px;
+  resize:vertical;
+  font-family:monospace;
+  font-size:.85rem;
+}
+
+input:focus,textarea:focus{
+  border-color:#22c55e;
+  outline:none;
+}
+
+/* Dropzone */
+.dropzone{
+  border:2px dashed #334155;
+  padding:25px;
+  text-align:center;
+  border-radius:12px;
+  cursor:pointer;
+  transition:.3s;
+}
+
+.dropzone.dragover{
+  border-color:#22c55e;
+  background:#111827;
+}
+
+.dropzone.loaded{
+  border-color:#22c55e;
+  background:#0f2a1c;
+}
+
+.file-info{
+  margin-top:10px;
+  font-size:14px;
+}
+
+button{
+  background:linear-gradient(135deg,#22c55e,#16a34a);
+  border:none;
+  padding:14px 40px;
+  border-radius:40px;
+  font-size:18px;
+  cursor:pointer;
+  margin:30px auto;
+  display:block;
+  transition:.3s;
+}
+
+button:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 20px rgba(34,197,94,.4);
+}
+
+.btn-small{
+  margin-top:12px;
+  padding:10px 20px;
+  font-size:14px;
+  border-radius:20px;
+}
+
+.btn-small:disabled{
+  opacity:.4;
+  cursor:not-allowed;
+}
+
+.status{
+  text-align:center;
+  margin-top:10px;
+  font-size:16px;
+}
+
+.success{color:#4ade80}
+.error{color:#f87171}
+
+@media(max-width:900px){
+  .row{flex-direction:column}
+}
+</style>
 </head>
 
 <body>
-<div class="container">
+<div class="wrapper">
 
-  <h2>P12/PFX → .key / .crt / chain.crt Converter</h2>
+<div class="header">
+<h1>🔐 P12 / PFX → KEY / CRT Converter</h1>
+</div>
 
-  <div class="notice">
-    🔒 <strong>Privacy Notice:</strong> All processing happens locally in your browser. Your .p12/.pfx file and keys are never uploaded to any server.
-  </div>
+<div class="notice">
+All processing happens locally in your browser. Your certificate is never uploaded.
+</div>
 
-  <div class="row" style="margin-bottom: 10px;">
-    <div class="pane">
-      <label class="label">P12 / PFX File</label>
-      <input type="file" id="pfxFile" accept=".p12,.pfx" />
-    </div>
+<div class="card">
+<div class="row">
 
-    <div class="pane">
-      <label class="label">Password</label>
-      <input type="password" id="pfxPassword" placeholder="Password for .p12/.pfx (if any)" />
-    </div>
+<div class="pane">
+<div class="label">P12 / PFX File</div>
 
-    <div class="pane">
-      <label class="label">Base Filename (optional)</label>
-      <input type="text" id="baseName" placeholder="Will use CN if left empty" />
-    </div>
-  </div>
+<div id="dropzone" class="dropzone">
+<div id="dropText">
+Drag & Drop your .p12 / .pfx file here<br>
+or click to select
+</div>
+<div id="fileInfo" class="file-info" style="display:none;"></div>
+<input type="file" id="pfxFile" accept=".p12,.pfx" hidden>
+</div>
 
-  <button id="extractBtn" class="btn-main">Extract KEY / CRT / chain.crt</button>
-  <div id="status" class="status"></div>
+</div>
 
-  <div class="row" style="margin-top: 20px;">
-    <div class="pane">
-      <label class="label">Private Key (.key)</label>
-      <textarea id="keyPem" readonly></textarea>
-      <button id="downloadKey" class="btn-small" disabled>Download .key</button>
-    </div>
+<div class="pane">
+<div class="label">Password</div>
+<input type="password" id="pfxPassword" placeholder="Enter password if any">
+</div>
 
-    <div class="pane">
-      <label class="label">Certificate (.crt)</label>
-      <textarea id="certPem" readonly></textarea>
-      <button id="downloadCert" class="btn-small" disabled>Download .crt</button>
-    </div>
+<div class="pane">
+<div class="label">Base Filename (Optional)</div>
+<input type="text" id="baseName" placeholder="Auto-filled from CN">
+</div>
 
-    <div class="pane">
-      <label class="label">CA Chain (.crt combined)</label>
-      <textarea id="chainPem" readonly></textarea>
-      <button id="downloadChain" class="btn-small" disabled>Download chain.crt</button>
-      <button id="downloadZip" class="btn-small" disabled>Download ZIP</button>
-    </div>
-  </div>
+</div>
+</div>
+
+<button id="extractBtn">Extract & Download</button>
+<div id="status" class="status"></div>
+
+<div class="card">
+<div class="row">
+
+<div class="pane">
+<div class="label">Private Key (.key)</div>
+<textarea id="keyPem" readonly></textarea>
+<button id="downloadKey" class="btn-small" disabled>Download .key</button>
+</div>
+
+<div class="pane">
+<div class="label">Certificate (.crt)</div>
+<textarea id="certPem" readonly></textarea>
+<button id="downloadCert" class="btn-small" disabled>Download .crt</button>
+</div>
+
+<div class="pane">
+<div class="label">CA Chain (.crt combined)</div>
+<textarea id="chainPem" readonly></textarea>
+<button id="downloadChain" class="btn-small" disabled>Download chain.crt</button>
+<button id="downloadZip" class="btn-small" disabled>Download ZIP</button>
+</div>
+
+</div>
+</div>
+
 </div>
 
 <script>
-let pfxBinary = null;
+let pfxBinary=null;
 
-function setStatus(msg, error = false) {
-  const el = document.getElementById("status");
-  el.textContent = msg;
-  el.className = "status " + (error ? "error" : "success");
+function setStatus(msg,error=false){
+ const el=document.getElementById("status");
+ el.textContent=msg;
+ el.className="status "+(error?"error":"success");
 }
 
-function getCN(cert) {
-  for (let attr of cert.subject.attributes) {
-    if (attr.name === "commonName") return attr.value;
-  }
-  return "certificate";
-}
+const dropzone=document.getElementById("dropzone");
+const fileInput=document.getElementById("pfxFile");
 
-/* --- Read file --- */
-document.getElementById("pfxFile").addEventListener("change", function () {
-  const file = this.files[0];
-  if (!file) return;
+dropzone.onclick=()=>fileInput.click();
 
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    const bytes = new Uint8Array(e.target.result);
-    let binary = "";
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    pfxBinary = binary;
-    setStatus("File loaded. Enter password and extract.", false);
-  };
-  reader.readAsArrayBuffer(file);
+dropzone.addEventListener("dragover",e=>{
+ e.preventDefault();
+ dropzone.classList.add("dragover");
 });
 
-/* --- Parse PFX --- */
-function parsePfx() {
-  if (!pfxBinary) throw new Error("No PFX file loaded.");
+dropzone.addEventListener("dragleave",()=>{
+ dropzone.classList.remove("dragover");
+});
 
-  const password = document.getElementById("pfxPassword").value;
-  const asn1 = forge.asn1.fromDer(pfxBinary);
+dropzone.addEventListener("drop",e=>{
+ e.preventDefault();
+ dropzone.classList.remove("dragover");
+ const file=e.dataTransfer.files[0];
+ if(file) loadFile(file);
+});
+
+fileInput.addEventListener("change",()=>{
+ if(fileInput.files.length) loadFile(fileInput.files[0]);
+});
+
+function loadFile(file){
+ const reader=new FileReader();
+ reader.onload=e=>{
+  const bytes=new Uint8Array(e.target.result);
+  let binary="";
+  for(let i=0;i<bytes.length;i++)
+   binary+=String.fromCharCode(bytes[i]);
+
+  pfxBinary=binary;
+
+  document.getElementById("dropText").innerHTML="File Loaded:";
+  const info=document.getElementById("fileInfo");
+  info.style.display="block";
+  info.innerHTML=
+    "📄 <strong>"+file.name+"</strong><br>" +
+    "Size: "+(file.size/1024).toFixed(2)+" KB";
+
+  dropzone.classList.add("loaded");
+
+  setStatus("File loaded successfully.");
+ };
+ reader.readAsArrayBuffer(file);
+}
+
+function getCN(cert){
+ const cn=cert.subject.getField("CN");
+ return cn?cn.value:"certificate";
+}
+
+document.getElementById("extractBtn").onclick=()=>{
+ try{
+  if(!pfxBinary) throw new Error("No PFX loaded.");
+
+  const password=document.getElementById("pfxPassword").value;
+  const asn1=forge.asn1.fromDer(pfxBinary);
 
   let p12;
-  try {
-    p12 = forge.pkcs12.pkcs12FromAsn1(asn1, password);
-  } catch {
-    throw new Error("Invalid P12/PFX password.");
+  try{
+   p12=forge.pkcs12.pkcs12FromAsn1(asn1,password);
+  }catch{
+   throw new Error("Invalid password.");
   }
 
-  let keyBag =
-    p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag })[forge.pki.oids.pkcs8ShroudedKeyBag] ||
-    p12.getBags({ bagType: forge.pki.oids.keyBag })[forge.pki.oids.keyBag];
+  let keyBag=
+   p12.getBags({bagType:forge.pki.oids.pkcs8ShroudedKeyBag})[forge.pki.oids.pkcs8ShroudedKeyBag] ||
+   p12.getBags({bagType:forge.pki.oids.keyBag})[forge.pki.oids.keyBag];
 
-  if (!keyBag || keyBag.length === 0) throw new Error("Private key not found.");
+  if(!keyBag||!keyBag.length)
+   throw new Error("Private key not found.");
 
-  keyBag = keyBag[0];
-  const privateKey = keyBag.key;
-  const keyId = keyBag.attributes.localKeyId && keyBag.attributes.localKeyId[0];
+  const privateKey=keyBag[0].key;
+  const keyPem=forge.pki.privateKeyToPem(privateKey);
 
-  const certBags =
-    p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag] || [];
+  const certBags=
+   p12.getBags({bagType:forge.pki.oids.certBag})[forge.pki.oids.certBag]||[];
 
-  let leafCert = null;
-  const chain = [];
+  const leafCert=certBags[0].cert;
+  const certPem=forge.pki.certificateToPem(leafCert);
 
-  for (let bag of certBags) {
-    const id = bag.attributes.localKeyId && bag.attributes.localKeyId[0];
-    if (id && keyId && id === keyId) leafCert = bag.cert;
-    else chain.push(bag.cert);
+  const chainPem=certBags.slice(1)
+   .map(b=>forge.pki.certificateToPem(b.cert))
+   .join("\n");
+
+  document.getElementById("keyPem").value=keyPem;
+  document.getElementById("certPem").value=certPem;
+  document.getElementById("chainPem").value=chainPem;
+
+  let base=document.getElementById("baseName").value.trim();
+  if(!base){
+   base=getCN(leafCert);
+   document.getElementById("baseName").value=base;
   }
 
-  if (!leafCert) {
-    leafCert = certBags[0].cert;
-    chain.length = 0;
-    for (let i = 1; i < certBags.length; i++) chain.push(certBags[i].cert);
-  }
+  enableDownloads(base,keyPem,certPem,chainPem);
+  setStatus("Extraction successful.");
 
-  return { privateKey, leafCert, chain };
-}
-
-/* --- Main Extract --- */
-document.getElementById("extractBtn").onclick = () => {
-  try {
-    const { privateKey, leafCert, chain } = parsePfx();
-
-    const keyPem = forge.pki.privateKeyToPem(privateKey);
-    const certPem = forge.pki.certificateToPem(leafCert);
-    const chainPem = chain.map(c => forge.pki.certificateToPem(c)).join("\n");
-
-    document.getElementById("keyPem").value = keyPem;
-    document.getElementById("certPem").value = certPem;
-    document.getElementById("chainPem").value = chainPem;
-
-    let base = document.getElementById("baseName").value.trim();
-    if (!base) {
-      base = getCN(leafCert);
-      document.getElementById("baseName").value = base;
-    }
-
-    document.getElementById("downloadKey").disabled = false;
-    document.getElementById("downloadCert").disabled = false;
-    document.getElementById("downloadChain").disabled = !chainPem.trim();
-    document.getElementById("downloadZip").disabled = false;
-
-    /* Downloads */
-    document.getElementById("downloadKey").onclick =
-      () => downloadFile(base + ".key", keyPem);
-
-    document.getElementById("downloadCert").onclick =
-      () => downloadFile(base + ".crt", certPem);
-
-    document.getElementById("downloadChain").onclick =
-      () => downloadFile(base + "-chain.crt", chainPem);
-
-    document.getElementById("downloadZip").onclick = async () => {
-      const zip = new JSZip();
-      zip.file(base + ".key", keyPem);
-      zip.file(base + ".crt", certPem);
-      if (chainPem.trim()) zip.file(base + "-chain.crt", chainPem);
-
-      const blob = await zip.generateAsync({ type: "blob" });
-      downloadBlob(blob, base + ".zip");
-    };
-
-    setStatus("Extraction successful!", false);
-  } catch (e) {
-    setStatus("Error: " + e.message, true);
-  }
+ }catch(e){
+  setStatus("Error: "+e.message,true);
+ }
 };
 
-/* --- Download Helpers --- */
-function downloadFile(name, content) {
-  const blob = new Blob([content], { type: "text/plain" });
-  downloadBlob(blob, name);
+function enableDownloads(base,key,cert,chain){
+ document.getElementById("downloadKey").disabled=false;
+ document.getElementById("downloadCert").disabled=false;
+ document.getElementById("downloadChain").disabled=!chain.trim();
+ document.getElementById("downloadZip").disabled=false;
+
+ document.getElementById("downloadKey").onclick=
+  ()=>downloadFile(base+".key",key);
+
+ document.getElementById("downloadCert").onclick=
+  ()=>downloadFile(base+".crt",cert);
+
+ document.getElementById("downloadChain").onclick=
+  ()=>downloadFile(base+"-chain.crt",chain);
+
+ document.getElementById("downloadZip").onclick=async()=>{
+  const zip=new JSZip();
+  zip.file(base+".key",key);
+  zip.file(base+".crt",cert);
+  if(chain.trim()) zip.file(base+"-chain.crt",chain);
+  const blob=await zip.generateAsync({type:"blob"});
+  downloadBlob(blob,base+".zip");
+ };
 }
 
-function downloadBlob(blob, name) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+function downloadFile(name,content){
+ const blob=new Blob([content],{type:"text/plain"});
+ downloadBlob(blob,name);
+}
+
+function downloadBlob(blob,name){
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url;
+ a.download=name;
+ document.body.appendChild(a);
+ a.click();
+ a.remove();
+ URL.revokeObjectURL(url);
 }
 </script>
 
