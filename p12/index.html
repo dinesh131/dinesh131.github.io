@@ -1,319 +1,260 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>PEM → PKCS#12 (.p12/.pfx) Converter</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<title>PEM Certificate Converter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <script src="https://cdn.jsdelivr.net/npm/node-forge/dist/forge.min.js"></script>
 
 <style>
-  body {
-    margin: 0;
-    padding: 0;
-    background: #0f172a;
-    font-family: system-ui, sans-serif;
-    color: #e5e7eb;
-  }
-
-  .container {
-    width: 100%;
-    padding: 20px 40px;
-    box-sizing: border-box;
-  }
-
-  h2 {
-    margin-top: 0;
-    font-size: 32px;
-    font-weight: 700;
-  }
-
-  .notice {
-    background: #1e293b;
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid #334155;
-    margin-bottom: 20px;
-  }
-
-  .row {
-    display: flex;
-    gap: 20px;
-    width: 100%;
-  }
-
-  .pane {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-
-  textarea, input, select {
-    background: #0f172a;
-    color: #e5e7eb;
-    border: 1px solid #475569;
-    border-radius: 6px;
-    padding: 10px;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  textarea {
-    height: 260px;
-    resize: vertical;
-  }
-
-  .label {
-    margin-bottom: 6px;
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-button {
-    background: #22c55e;
-    border: none;
-    padding: 12px 28px;
-    font-size: 18px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-    display: block;
-    margin: 25px auto;
-    width: auto;
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Inter,system-ui;
+  background:linear-gradient(135deg,#0f172a,#1e293b);
+  color:#f1f5f9
 }
-
-button:hover {
-    background: #16a34a;
+.wrapper{max-width:1300px;margin:auto;padding:40px 20px}
+.header{text-align:center;margin-bottom:30px}
+.header h1{margin:0;font-size:34px}
+.notice{text-align:center;opacity:.8;margin-bottom:20px}
+.card{
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:16px;
+  padding:20px;
+  margin-bottom:20px
 }
-
-  .status {
-    margin-top: 15px;
-    font-size: 16px;
-  }
-
-  .error { color: #f87171; }
-  .success { color: #4ade80; }
-
-/* ============================
-   MOBILE RESPONSIVE LAYOUT
-   ============================ */
-@media (max-width: 900px) {
-  .row {
-    flex-direction: column;
-  }
-
-  .pane textarea {
-    height: 200px;
-  }
-
-  .container {
-    padding: 15px;
-  }
-
-  h2 {
-    font-size: 24px;
-  }
-
-  button {
-    padding: 12px 20px;
-    font-size: 16px;
-  }
-
-  .label {
-    font-size: 13px;
-  }
+.row{display:flex;gap:20px;flex-wrap:wrap}
+.pane{flex:1;min-width:280px;display:flex;flex-direction:column}
+.label{margin-bottom:6px;font-weight:600}
+textarea,input,select{
+  background:#0f172a;
+  border:1px solid #334155;
+  border-radius:10px;
+  padding:10px;
+  color:#fff;
+  transition:.3s
 }
-
-@media (max-width: 600px) {
-  textarea {
-    height: 180px;
-  }
-
-  .notice {
-    font-size: 14px;
-    padding: 10px;
-  }
-
-  input, select {
-    font-size: 15px;
-    padding: 8px;
-  }
-
-  button {
-    padding: 10px 20px;
-    font-size: 15px;
-  }
+textarea{
+  min-height:200px;
+  resize:vertical
 }
-
+textarea.dragover{
+  border:2px dashed #22c55e;
+  background:#111827
+}
+textarea:focus,input:focus,select:focus{
+  border-color:#22c55e;
+  outline:none
+}
+button{
+  background:linear-gradient(135deg,#22c55e,#16a34a);
+  border:none;
+  padding:14px 40px;
+  border-radius:40px;
+  font-size:18px;
+  cursor:pointer;
+  margin:30px auto;
+  display:block;
+  transition:.3s
+}
+button:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 20px rgba(34,197,94,.4)
+}
+.status{text-align:center;margin-top:10px;font-size:16px}
+.success{color:#4ade80}
+.error{color:#f87171}
+@media(max-width:900px){
+  .row{flex-direction:column}
+}
 </style>
 </head>
-
 <body>
-<div class="container">
 
-<h2>PEM → PKCS#12 (.p12/.pfx) Converter</h2>
+<div class="wrapper">
+
+<div class="header">
+<h1>🔐 PEM → PKCS#12 / PFX Converter</h1>
+</div>
 
 <div class="notice">
-  🔒 <strong>Privacy Notice:</strong>  
-  All processing happens locally in your browser.  
-  <strong>No private key or certificate is uploaded to any server.</strong>
+All processing happens locally in your browser.  
+No private keys are uploaded.
 </div>
 
+<div class="card">
 <div class="row">
 
-  <!-- PRIVATE KEY -->
-  <div class="pane">
-    <label class="label">Private Key</label>
-    <input type="file" id="privKeyFile">
-    <textarea id="privKey"></textarea>
-  </div>
-
-  <!-- CERTIFICATE -->
-  <div class="pane">
-    <label class="label">Certificate (.pem/.crt)</label>
-    <input type="file" id="certFile">
-    <textarea id="certPem"></textarea>
-  </div>
-
-  <!-- CA CHAIN -->
-  <div class="pane">
-    <label class="label">CA Chain (PEM)</label>
-    <input type="file" id="caFile">
-    <textarea id="caPem"></textarea>
-  </div>
-
+<div class="pane">
+<div class="label">Private Key</div>
+<input type="file" id="privKeyFile">
+<textarea id="privKey" placeholder="Drag & drop private key here..."></textarea>
 </div>
 
-<div class="row" style="margin-top:20px;">
-
-  <div class="pane">
-    <label class="label">P12/PFX Password</label>
-    <input type="password" id="p12Password" placeholder="Optional">
-  </div>
-
-  <div class="pane">
-    <label class="label">Output Format</label>
-    <select id="pfxFormat">
-      <option value="p12">PKCS#12 (.p12)</option>
-      <option value="pfx">PFX (.pfx)</option>
-    </select>
-  </div>
-
-  <div class="pane">
-    <label class="label">Output Filename</label>
-    <input id="p12FileName" placeholder="Auto-filled from CN">
-  </div>
-
+<div class="pane">
+<div class="label">Certificate (.pem/.crt)</div>
+<input type="file" id="certFile">
+<textarea id="certPem" placeholder="Drag & drop certificate here..."></textarea>
 </div>
 
-<button id="convertBtn">Convert</button>
+<div class="pane">
+<div class="label">CA Chain (Optional)</div>
+<input type="file" id="caFile">
+<textarea id="caPem" placeholder="Drag & drop CA chain here..."></textarea>
+</div>
 
+</div>
+</div>
+
+<div class="card">
+<div class="row">
+
+<div class="pane">
+<div class="label">Password (Optional)</div>
+<input type="password" id="password">
+</div>
+
+<div class="pane">
+<div class="label">Output Format</div>
+<select id="format">
+<option value="p12">PKCS#12 (.p12)</option>
+<option value="pfx">PFX (.pfx)</option>
+</select>
+</div>
+
+<div class="pane">
+<div class="label">Output Filename</div>
+<input id="filename" placeholder="Auto-filled from CN">
+</div>
+
+</div>
+</div>
+
+<button id="convertBtn">Convert & Download</button>
 <div id="status" class="status"></div>
 
 </div>
 
 <script>
-// Read file into textarea
-function readFile(input, target) {
-  if (!input.files.length) return;
-  const reader = new FileReader();
-  reader.onload = () => document.getElementById(target).value = reader.result;
-  reader.readAsText(input.files[0]);
+
+// ---------- File Reader ----------
+function readFile(input,target){
+ if(!input.files.length)return;
+ const reader=new FileReader();
+ reader.onload=()=>document.getElementById(target).value=reader.result;
+ reader.readAsText(input.files[0]);
 }
 
-privKeyFile.onchange = () => readFile(privKeyFile, "privKey");
-certFile.onchange   = () => {
-  readFile(certFile, "certPem");
-  setTimeout(autoFillCN, 300);
+privKeyFile.onchange=()=>readFile(privKeyFile,"privKey");
+certFile.onchange=()=>{
+ readFile(certFile,"certPem");
+ setTimeout(autoFillCN,300);
 };
-caFile.onchange     = () => readFile(caFile, "caPem");
+caFile.onchange=()=>readFile(caFile,"caPem");
 
-// Extract CN
-function getCN(cert) {
-  for (let a of cert.subject.attributes) {
-    if (a.name === "commonName") return a.value;
-  }
-  return "certificate";
+// ---------- Drag & Drop ----------
+function enableDrop(id){
+ const el=document.getElementById(id);
+ el.addEventListener("dragover",e=>{
+  e.preventDefault();
+  el.classList.add("dragover");
+ });
+ el.addEventListener("dragleave",()=>el.classList.remove("dragover"));
+ el.addEventListener("drop",e=>{
+  e.preventDefault();
+  el.classList.remove("dragover");
+  const file=e.dataTransfer.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+   el.value=reader.result;
+   if(id==="certPem")autoFillCN();
+  };
+  reader.readAsText(file);
+ });
 }
 
-// Autofill filename from CN
-function autoFillCN() {
-  try {
-    const pem = document.getElementById("certPem").value.trim();
-    if (!pem) return;
+enableDrop("privKey");
+enableDrop("certPem");
+enableDrop("caPem");
 
-    const cert = forge.pki.certificateFromPem(pem);
-    const cn = getCN(cert);
-
-    document.getElementById("p12FileName").value = cn;
-  } catch {}
+// ---------- Helpers ----------
+function getCN(cert){
+ const cn=cert.subject.getField("CN");
+ return cn?cn.value:"certificate";
 }
 
-// Parse multiple certs
-function parseCerts(pem) {
-  const arr = [];
-  const re = /-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g;
-  let m;
-  while ((m = re.exec(pem)) !== null) arr.push(forge.pki.certificateFromPem(m[0]));
-  return arr;
+function autoFillCN(){
+ try{
+  const cert=forge.pki.certificateFromPem(certPem.value.trim());
+  filename.value=getCN(cert);
+ }catch{}
 }
 
-function show(msg, err=false){
-  const el = document.getElementById("status");
-  el.textContent = msg;
-  el.className = "status " + (err ? "error" : "success");
+function parseCerts(pem){
+ const arr=[];
+ const re=/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g;
+ let m;
+ while((m=re.exec(pem))!==null){
+  arr.push(forge.pki.certificateFromPem(m[0]));
+ }
+ return arr;
 }
 
-// Convert
-convertBtn.onclick = () => {
-  try {
-    const keyPem = document.getElementById("privKey").value.trim();
-    const crtPem = document.getElementById("certPem").value.trim();
-    const caPemText = document.getElementById("caPem").value.trim(); // FIXED
+function show(msg,err=false){
+ status.textContent=msg;
+ status.className="status "+(err?"error":"success");
+}
 
-    if (!keyPem || !crtPem) {
-      show("Private key + certificate are required.", true);
-      return;
-    }
+// ---------- Convert ----------
+convertBtn.onclick=()=>{
+try{
 
-    const key  = forge.pki.privateKeyFromPem(keyPem);
-    const cert = forge.pki.certificateFromPem(crtPem);
-    const ca   = parseCerts(caPemText);
+ const keyPem=privKey.value.trim();
+ const crtPem=certPem.value.trim();
+ const caPemText=caPem.value.trim();
+ const passwordVal=password.value;
+ const fmt=format.value;
 
-    const alias = getCN(cert);
-    const chain = [cert, ...ca];
+ if(!keyPem||!crtPem){
+  show("Private key and certificate required.",true);
+  return;
+ }
 
-    const password = document.getElementById("p12Password").value;
-    let filename   = document.getElementById("p12FileName").value.trim();
-    const fmt      = document.getElementById("pfxFormat").value;
+ const key=forge.pki.privateKeyFromPem(keyPem);
+ const cert=forge.pki.certificateFromPem(crtPem);
+ const chain=parseCerts(caPemText);
 
-    if (!filename) filename = alias;
-    filename += fmt === "pfx" ? ".pfx" : ".p12";
+ const alias=getCN(cert);
+ let name=filename.value.trim()||alias;
 
-    const p12Asn1 = forge.pkcs12.toPkcs12Asn1(
-      key,
-      chain,
-      password,
-      { algorithm:"3des", friendlyName:alias, generateLocalKeyId:true }
-    );
+ const p12Asn1=forge.pkcs12.toPkcs12Asn1(
+  key,[cert,...chain],passwordVal,
+  {algorithm:"3des",friendlyName:alias,generateLocalKeyId:true}
+ );
 
-    const der = forge.asn1.toDer(p12Asn1).getBytes();
-    const buf = new Uint8Array(der.length);
-    for (let i=0;i<der.length;i++) buf[i] = der.charCodeAt(i);
+ const der=forge.asn1.toDer(p12Asn1).getBytes();
+ const buf=new Uint8Array(der.length);
+ for(let i=0;i<der.length;i++)buf[i]=der.charCodeAt(i);
 
-    const blob = new Blob([buf], { type:"application/x-pkcs12" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
+ const blob=new Blob([buf],{type:"application/x-pkcs12"});
+ name+=fmt==="pfx"?".pfx":".p12";
 
-    show(`Generated ${filename} with alias: ${alias}`, false);
-  }
-  catch (e) {
-    show("Error: " + e.message, true);
-  }
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download=name;
+ a.click();
+
+ show("Generated "+name+" successfully.");
+
+}catch(e){
+ show("Error: "+e.message,true);
+}
 };
+
 </script>
-
 </body>
 </html>
